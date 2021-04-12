@@ -1,3 +1,7 @@
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
 void crout(double const **A, double **L, double **U, int n) {
 	int i, j, k;
 	double sum = 0;
@@ -23,4 +27,8 @@ void crout(double const **A, double **L, double **U, int n) {
 			U[j][i] =(A[j][i] -	sum) / L[j][j];
 		}
 	}
+}
+
+int main(int argc,char** argv[]){
+	
 }
