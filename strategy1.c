@@ -74,7 +74,7 @@ void crout(double const **A, double **L, double **U, int n) {
 			{
 				for (i = j; i < n; i++) {
 					sum = 0;
-					#pragma omp parallel num_threads(2) shared(j,L,U,sum)
+					#pragma omp parallel num_threads(2) shared(i,j,L,U,sum)
 					{
 						summation_matrix_L(L,U,sum,i,j);
 					}
@@ -85,7 +85,7 @@ void crout(double const **A, double **L, double **U, int n) {
 			{
 				for (i=j; i<n; i++) {
 					sum = 0;
-					#pragma omp parallel num_threads(2) shared(j,L,U,sum)
+					#pragma omp parallel num_threads(2) shared(i,j,L,U,sum)
 					{
 						summation_matrix_U(L,U,sum,i,j);
 					}
