@@ -1,7 +1,7 @@
 import sys
 import numpy as np
 
-n=5000
+n=500
 
 random_matrix = np.random.rand(n,n);
 
