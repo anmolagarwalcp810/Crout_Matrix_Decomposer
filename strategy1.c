@@ -70,7 +70,7 @@ void print_matrix(double **A,int n){
 	}
 }
 
-void crout(double const **A, double **L, double **U, int n,int loop2_threads,int loop3_threads) {
+void crout(double const **A, double **L, double **U, int n,int loop2_threads) {
 	int i, j, k;
 	double sum = 0;
 	#pragma omp parallel for private(i) shared(U,n) schedule(static)
@@ -89,31 +89,26 @@ void crout(double const **A, double **L, double **U, int n,int loop2_threads,int
 
 	// #pragma omp parallel for private(i,j,k,sum) shared(A,L,U,n) schedule(dynamic) num_threads(2)
 		for (j=0; j<n; j++) {
+			// if(j%100==0)printf("j:%d\n",j );
 			#pragma omp parallel for private(i,k,sum) shared(j,A,L,U,n) schedule(static) num_threads(loop2_threads)
 				for (i = j; i < n; i++) {
 					// printf("2: i,%d; j,%d; thread,%d\n", i,j,omp_get_thread_num());
 					sum = 0;
-					#pragma omp parallel num_threads(loop3_threads) shared(i,j,L,U,sum)
-					{
-						// printf("3: i,%d; j,%d; thread,%d\n", i,j,omp_get_thread_num());
-						summation_matrix_L(L,U,&sum,i,j);
-					}
+					for (k = 0; k < j; k++) {
+						sum = sum + L[i][k] * U[k][j];
+					} 
 					L[i][j] = A[i][j] -	sum;
-					if(i==j){
-						if(L[j][j]==0){
-							exit(0);
-						}
-					}
 				}
+			if(L[j][j]==0){
+				exit(0);
+			}
 			#pragma omp parallel for private(i,k,sum) shared(j,A,L,U,n) schedule(static) num_threads(loop2_threads)
 				for (i=j; i<n; i++) {
 					// printf("4: i,%d; j,%d; thread,%d\n", i,j,omp_get_thread_num());
 					sum = 0;
-					#pragma omp parallel num_threads(loop3_threads) shared(i,j,L,U,sum)
-					{
-						// printf("5: i,%d; j,%d; thread,%d\n", i,j,omp_get_thread_num());
-						summation_matrix_U(L,U,&sum,i,j);
-					}
+					for(k = 0; k < j; k++) {
+						sum = sum + L[j][k] * U[k][i];
+					} 
 					U[j][i] =(A[j][i] -	sum) / L[j][j];
 				}
 		}
@@ -129,28 +124,10 @@ int main(int argc,char* argv[]){
 
 	*/
 
-	int n,NUM_THREADS,loop2_threads,loop3_threads;
+	int n,NUM_THREADS;
 	n = atoi(argv[1]);
 	char* input = argv[2];
 	NUM_THREADS = atoi(argv[3]);
-
-	switch(NUM_THREADS){
-		case(2):
-			loop2_threads=2;
-			loop3_threads=1;
-		case(4):
-			loop2_threads=2;
-			loop3_threads=2;
-		case(8):
-			loop2_threads=4;
-			loop3_threads=2;	// because there is also cost of creating new threads
-		case(16):
-			loop2_threads=4;
-			loop3_threads=4;
-		default:
-			loop2_threads=NUM_THREADS/2;
-			loop3_threads=NUM_THREADS/loop2_threads;
-	}
 
 
 	double* A[n];
@@ -177,17 +154,23 @@ int main(int argc,char* argv[]){
 	// initialise L,U
 	// should we parallelize?
 
-	#pragma omp parallel for schedule(static) num_threads(loop2_threads)
+	#pragma omp parallel for schedule(static) num_threads(NUM_THREADS)
 	for(int i=0;i<n;i++){
-		#pragma omp parallel for schedule(static) num_threads(loop3_threads)
 		for(int j=0;j<n;j++){
 			L[i][j]=0;
 			U[i][j]=0;
 		}
 	}
 
-	crout(A,L,U,n,loop2_threads,loop3_threads);
+	double start,end;
+	// start = omp_get_wtime();
+	// printf("start: %lf\n",start);
 
+	crout(A,L,U,n,NUM_THREADS);
+
+	// end = omp_get_wtime();
+
+	// printf("TIME: %lf\n",end-start );
 	// printf("A\n");
 	// now check
 	// print_matrix(A,n);
@@ -196,7 +179,7 @@ int main(int argc,char* argv[]){
 	// printf("L\n");
 	// output_(L/U)_<strategy(0/1/2/3/4)>_<number of threads/processes(2/4/8/16)>.txt
 	// print_matrix(L,n);
-	char str[100] = "output_L_1_";
+	char str[100] = "output_L_1_alt_";
 	char intbuf[10];
 	sprintf(intbuf,"%d",NUM_THREADS);
 	strcat(str,intbuf);
@@ -207,7 +190,7 @@ int main(int argc,char* argv[]){
 	// printf("------------------------------\n");
 	// printf("U\n");
 	// print_matrix(U,n);
-	char str2[100] = "output_U_1_";
+	char str2[100] = "output_U_1_alt_";
 	strcat(str2,intbuf);
 	strcat(str2,".txt");
 	write_output(str2,U,n);
